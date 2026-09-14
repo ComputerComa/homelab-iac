@@ -40,8 +40,15 @@
     ansible_python_interpreter: >-
       /opt/semaphore/venvs/netbox-ansible/bin/python
 
-    netbox_url: "{{ lookup('env', 'NETBOX_API') }}"
-    netbox_token: "{{ lookup('env', 'NETBOX_BOOTSTRAP_TOKEN') }}"
+    netbox_url: >-
+      {{ lookup('env', 'NETBOX_API')
+         | trim
+         | regex_replace('/+$', '') }}
+
+    netbox_token: >-
+      {{ lookup('env', 'NETBOX_BOOTSTRAP_TOKEN')
+         | trim
+         | regex_replace('(?i)^bearer\s+', '') }}
 
   pre_tasks:
     - name: Verify NetBox API variables are available
@@ -52,15 +59,34 @@
         fail_msg: NETBOX_API or NETBOX_BOOTSTRAP_TOKEN is missing.
       no_log: true
 
-    - name: Verify the NetBox API responds
+    - name: Probe the NetBox API
       ansible.builtin.uri:
         url: "{{ netbox_url }}/api/status/"
         method: GET
         headers:
           Authorization: "Bearer {{ netbox_token }}"
           Accept: application/json
-        status_code: 200
+        status_code:
+          - 200
+          - 400
+          - 401
+          - 403
+          - 404
+          - 500
+          - 502
+          - 503
+        use_proxy: false
+      register: netbox_api_probe
       no_log: true
+
+    - name: Verify the NetBox API probe succeeded
+      ansible.builtin.assert:
+        that:
+          - netbox_api_probe.status == 200
+        fail_msg: >-
+          NetBox API authentication returned HTTP
+          {{ netbox_api_probe.status | default('unknown') }}.
+        success_msg: NetBox API authentication succeeded.
 
   tasks:
     - name: Create the homelab site
