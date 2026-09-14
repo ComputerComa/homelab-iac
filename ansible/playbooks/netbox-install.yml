@@ -122,10 +122,10 @@
       ansible.builtin.command:
         cmd: "{{ netbox_path }}/upgrade.sh"
         chdir: "{{ netbox_path }}"
+        creates: "{{ netbox_release_path }}/venv/bin/python"
       environment:
         PYTHON: /usr/bin/python3
       register: netbox_upgrade
-      changed_when: true
       no_log: true
 
     - name: Install the Gunicorn configuration
@@ -232,6 +232,8 @@
     - name: Wait for the NetBox web interface
       ansible.builtin.uri:
         url: http://127.0.0.1/
+        headers:
+          Host: netbox
         status_code: 200
         return_content: false
       register: netbox_http
