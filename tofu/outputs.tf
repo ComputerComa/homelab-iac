@@ -9,3 +9,16 @@ output "semaphore_test_hostname" {
 output "semaphore_test_ip" {
   value = module.semaphore_test.ip_address
 }
+
+
+output "netbox_vmid" {
+  value = module.netbox.vmid
+}
+
+output "netbox_hostname" {
+  value = module.netbox.hostname
+}
+
+output "netbox_ip" {
+  value = module.netbox.ip_address
+}

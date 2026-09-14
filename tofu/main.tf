@@ -25,3 +25,34 @@ module "semaphore_test" {
     "test"
   ]
 }
+
+module "netbox" {
+  source = "./modules/proxmox-lxc"
+
+  node_name        = var.proxmox_node
+  datastore_id     = var.datastore_id
+  template_file_id = var.template_file_id
+
+  vmid     = 139
+  hostname = "netbox"
+
+  cores     = 2
+  memory_mb = 4096
+  swap_mb   = 512
+  disk_gb   = 20
+
+  bridge         = var.bridge
+  gateway        = var.gateway
+  subnet_prefix  = var.subnet_prefix
+  prefix_length  = var.prefix_length
+  ssh_public_key = var.ssh_public_key
+
+  enable_nesting = false
+
+  tags = [
+    "managed-by-tofu",
+    "netbox",
+    "ipam",
+    "dcim"
+  ]
+}
