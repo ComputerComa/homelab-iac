@@ -1,5 +1,5 @@
 locals {
-  ip_address = "${var.subnet_prefix}.${var.vmid}/24"
+  ip_address = "${var.subnet_prefix}.${var.vmid}/${var.prefix_length}"
 }
 
 resource "proxmox_virtual_environment_container" "this" {

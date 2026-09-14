@@ -84,3 +84,13 @@ variable "enable_nesting" {
   type    = bool
   default = true
 }
+
+variable "prefix_length" {
+  type    = number
+  default = 16
+
+  validation {
+    condition     = var.prefix_length >= 1 && var.prefix_length <= 32
+    error_message = "prefix_length must be between 1 and 32."
+  }
+}

@@ -13,10 +13,11 @@ module "semaphore_test" {
   swap_mb   = 512
   disk_gb   = 8
 
-  bridge         = var.bridge
-  gateway        = var.gateway
-  subnet_prefix  = var.subnet_prefix
-  ssh_public_key = var.ssh_public_key
+bridge         = var.bridge
+gateway        = var.gateway
+subnet_prefix  = var.subnet_prefix
+prefix_length  = var.prefix_length
+ssh_public_key = var.ssh_public_key
 
   tags = [
     "managed-by-tofu",
