@@ -1,0 +1,35 @@
+---
+- name: Verify NetBox application server
+  hosts: netbox_servers
+  gather_facts: true
+
+  tasks:
+    - name: Display detected NetBox host information
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Python: {{ ansible_python_version }}"
+          - "Address: {{ ansible_default_ipv4.address }}"
+
+    - name: Verify access to PostgreSQL port
+      ansible.builtin.wait_for:
+        host: 10.0.150.130
+        port: 5432
+        timeout: 5
+        state: started
+
+- name: Verify PostgreSQL server
+  hosts: database_servers
+  gather_facts: true
+
+  tasks:
+    - name: Check PostgreSQL service
+      ansible.builtin.command:
+        cmd: systemctl is-active postgresql
+      register: postgresql_status
+      changed_when: false
+
+    - name: Display PostgreSQL status
+      ansible.builtin.debug:
+        msg: "PostgreSQL is {{ postgresql_status.stdout }}"
