@@ -53,23 +53,23 @@
           - python3-dev
           - python3-pip
           - python3-venv
-          - redis-server
+          - valkey-server
           - zlib1g-dev
         state: present
         update_cache: true
 
-    - name: Enable and start Redis
+    - name: Enable and start Valkey
       ansible.builtin.service:
-        name: redis-server
+        name: valkey-server
         state: started
         enabled: true
 
-    - name: Verify Redis responds
+    - name: Verify Valkey responds
       ansible.builtin.command:
-        cmd: redis-cli ping
-      register: redis_ping
+        cmd: valkey-cli ping
+      register: valkey_ping
       changed_when: false
-      failed_when: redis_ping.stdout != "PONG"
+      failed_when: valkey_ping.stdout != "PONG"
 
     - name: Create the NetBox system account
       ansible.builtin.user:
