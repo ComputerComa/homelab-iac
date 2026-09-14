@@ -1,10 +1,45 @@
 ---
+- name: Prepare the Semaphore NetBox API environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    netbox_venv_path: /opt/semaphore/venvs/netbox-ansible
+
+  tasks:
+    - name: Install Python virtual environment support
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+        state: present
+        update_cache: true
+
+    - name: Create the NetBox automation environment
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -m
+          - venv
+          - "{{ netbox_venv_path }}"
+        creates: "{{ netbox_venv_path }}/bin/python"
+
+    - name: Install pynetbox with v2 token support
+      ansible.builtin.pip:
+        name: pynetbox==7.6.0
+        virtualenv: "{{ netbox_venv_path }}"
+        state: present
+
 - name: Create the foundational NetBox data model
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
+    ansible_python_interpreter: >-
+      /opt/semaphore/venvs/netbox-ansible/bin/python
+
     netbox_url: "{{ lookup('env', 'NETBOX_API') }}"
     netbox_token: "{{ lookup('env', 'NETBOX_BOOTSTRAP_TOKEN') }}"
 
@@ -22,7 +57,7 @@
         url: "{{ netbox_url }}/api/status/"
         method: GET
         headers:
-          Authorization: "Token {{ netbox_token }}"
+          Authorization: "Bearer {{ netbox_token }}"
           Accept: application/json
         status_code: 200
       no_log: true
@@ -83,15 +118,17 @@
       loop:
         - name: Ansible Managed
           slug: ansible-managed
-          color: 00ff00
+          color: "00ff00"
           description: Configuration managed by Ansible
+
         - name: OpenTofu Managed
           slug: opentofu-managed
-          color: 0080ff
+          color: "0080ff"
           description: Infrastructure managed by OpenTofu
+
         - name: Bootstrap
           slug: bootstrap
-          color: ff9800
+          color: "ff9800"
           description: Required to bootstrap automation
       no_log: true
 
@@ -107,10 +144,13 @@
       loop:
         - name: Homelab Network
           slug: homelab-network
+
         - name: DHCP
           slug: dhcp
+
         - name: Virtual Services
           slug: virtual-services
+
         - name: DNS Infrastructure
           slug: dns-infrastructure
       no_log: true
@@ -147,9 +187,11 @@
         - prefix: 10.0.4.0/24
           role: DHCP
           description: DHCP-assigned systems
+
         - prefix: 10.0.150.0/24
           role: Virtual Services
           description: Static Proxmox virtual services
+
         - prefix: 10.0.200.0/24
           role: DNS Infrastructure
           description: DNS infrastructure addresses
@@ -159,6 +201,6 @@
       ansible.builtin.debug:
         msg:
           - NetBox base model created successfully.
-          - Site: Home
-          - Cluster: Homelab Proxmox
-          - Parent prefix: 10.0.0.0/16
+          - "Site: Home"
+          - "Cluster: Homelab Proxmox"
+          - "Parent prefix: 10.0.0.0/16"
