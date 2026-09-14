@@ -1,0 +1,40 @@
+# Managed by Ansible. Do not edit directly.
+
+ALLOWED_HOSTS = [
+    "10.0.150.139",
+    "netbox",
+]
+
+DATABASES = {
+    "default": {
+        "NAME": "netbox",
+        "USER": "netbox",
+        "PASSWORD": "{{ netbox_db_password }}",
+        "HOST": "10.0.150.130",
+        "PORT": "5432",
+        "CONN_MAX_AGE": 300,
+    }
+}
+
+REDIS = {
+    "tasks": {
+        "HOST": "127.0.0.1",
+        "PORT": 6379,
+        "PASSWORD": "",
+        "DATABASE": 0,
+        "SSL": False,
+    },
+    "caching": {
+        "HOST": "127.0.0.1",
+        "PORT": 6379,
+        "PASSWORD": "",
+        "DATABASE": 1,
+        "SSL": False,
+    },
+}
+
+SECRET_KEY = "{{ netbox_secret_key }}"
+
+API_TOKEN_PEPPERS = {
+    1: "{{ netbox_api_token_pepper }}",
+}
