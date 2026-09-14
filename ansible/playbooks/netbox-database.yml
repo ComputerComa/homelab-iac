@@ -1,0 +1,97 @@
+---
+- name: Configure the PostgreSQL database for NetBox
+  hosts: database_servers
+  gather_facts: true
+
+  vars:
+    netbox_database_name: netbox
+    netbox_database_user: netbox
+    netbox_database_host: 10.0.150.130
+    netbox_application_ip: 10.0.150.139
+
+  tasks:
+    - name: Ensure PostgreSQL Python support is installed
+      ansible.builtin.apt:
+        name:
+          - python3-psycopg
+        state: present
+        update_cache: true
+
+    - name: Read the active pg_hba.conf location
+      ansible.builtin.command:
+        cmd: runuser -u postgres -- psql -Atqc "SHOW hba_file;"
+      register: postgres_hba_file
+      changed_when: false
+
+    - name: Create the NetBox PostgreSQL account
+      community.postgresql.postgresql_user:
+        name: "{{ netbox_database_user }}"
+        password: "{{ lookup('env', 'NETBOX_DB_PASSWORD') }}"
+        login_unix_socket: /var/run/postgresql
+        state: present
+      become: true
+      become_user: postgres
+      no_log: true
+
+    - name: Create the NetBox database
+      community.postgresql.postgresql_db:
+        name: "{{ netbox_database_name }}"
+        owner: "{{ netbox_database_user }}"
+        encoding: UTF8
+        login_unix_socket: /var/run/postgresql
+        state: present
+      become: true
+      become_user: postgres
+
+    - name: Permit NetBox to access only its database
+      community.postgresql.postgresql_pg_hba:
+        dest: "{{ postgres_hba_file.stdout }}"
+        contype: host
+        databases: "{{ netbox_database_name }}"
+        users: "{{ netbox_database_user }}"
+        source: "{{ netbox_application_ip }}/32"
+        method: scram-sha-256
+        state: present
+      notify: Reload PostgreSQL
+
+  handlers:
+    - name: Reload PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: reloaded
+
+- name: Verify the NetBox database connection
+  hosts: netbox_servers
+  gather_facts: false
+
+  vars:
+    netbox_database_name: netbox
+    netbox_database_user: netbox
+    netbox_database_host: 10.0.150.130
+
+  tasks:
+    - name: Install the PostgreSQL client
+      ansible.builtin.apt:
+        name: postgresql-client
+        state: present
+        update_cache: true
+
+    - name: Test the database connection
+      ansible.builtin.command:
+        cmd: >-
+          psql
+          --host={{ netbox_database_host }}
+          --username={{ netbox_database_user }}
+          --dbname={{ netbox_database_name }}
+          --no-password
+          --tuples-only
+          --command=SELECT\ 1;
+      environment:
+        PGPASSWORD: "{{ lookup('env', 'NETBOX_DB_PASSWORD') }}"
+      register: netbox_database_test
+      changed_when: false
+      no_log: true
+
+    - name: Confirm the database is available
+      ansible.builtin.debug:
+        msg: "NetBox successfully connected to its PostgreSQL database."
