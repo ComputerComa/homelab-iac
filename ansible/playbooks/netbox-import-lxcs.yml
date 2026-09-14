@@ -1,0 +1,149 @@
+---
+- name: Import Proxmox LXCs into NetBox
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ansible_python_interpreter: /opt/semaphore/venvs/netbox-ansible/bin/python
+
+    netbox_url: >-
+      {{
+        lookup('env', 'NETBOX_API')
+        | trim
+        | regex_replace('/+$', '')
+      }}
+
+    netbox_token: >-
+      {{
+        lookup('env', 'NETBOX_BOOTSTRAP_TOKEN')
+        | trim
+        | regex_replace('(?i)^bearer\\s+', '')
+      }}
+
+    netbox_lxcs_json: "{{ lookup('env', 'NETBOX_LXCS_JSON') }}"
+
+  pre_tasks:
+    - name: Verify required environment variables exist
+      ansible.builtin.assert:
+        that:
+          - netbox_url | length > 0
+          - netbox_token | length > 0
+          - netbox_lxcs_json | length > 0
+        fail_msg: >-
+          NETBOX_API, NETBOX_BOOTSTRAP_TOKEN, or NETBOX_LXCS_JSON
+          is missing from the Semaphore environment.
+      no_log: true
+
+    - name: Decode the private LXC inventory
+      ansible.builtin.set_fact:
+        netbox_lxcs: "{{ netbox_lxcs_json | from_json }}"
+      no_log: true
+
+    - name: Validate the private LXC inventory
+      ansible.builtin.assert:
+        that:
+          - netbox_lxcs is sequence
+          - netbox_lxcs is not string
+          - netbox_lxcs | length > 0
+        fail_msg: NETBOX_LXCS_JSON must contain a non-empty JSON array.
+      no_log: true
+
+    - name: Validate each LXC record
+      ansible.builtin.assert:
+        that:
+          - item.name is defined
+          - item.name | length > 0
+          - item.vmid is defined
+          - item.address is defined
+          - item.address | ansible.utils.ipaddr
+        fail_msg: An LXC record is missing a valid name, VMID, or IP address.
+      loop: "{{ netbox_lxcs }}"
+      no_log: true
+
+  tasks:
+    - name: Create the Proxmox VMID custom field
+      netbox.netbox.netbox_custom_field:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: proxmox_vmid
+          label: Proxmox VMID
+          type: integer
+          object_types:
+            - virtualization.virtualmachine
+          description: Proxmox VM or container identifier
+          required: false
+        state: present
+      no_log: true
+
+    - name: Create LXC virtual-machine records
+      netbox.netbox.netbox_virtual_machine:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: "{{ item.name }}"
+          cluster: Homelab Proxmox
+          site: Home
+          status: "{{ item.status | default('active') }}"
+          custom_fields:
+            proxmox_vmid: "{{ item.vmid }}"
+          tags: "{{ item.tags | default(['Ansible Managed']) }}"
+          description: Proxmox LXC container
+        state: present
+      loop: "{{ netbox_lxcs }}"
+      no_log: true
+
+    - name: Create the primary LXC network interfaces
+      netbox.netbox.netbox_vm_interface:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          virtual_machine: "{{ item.name }}"
+          name: eth0
+          enabled: true
+          description: Primary Proxmox network interface
+        state: present
+      loop: "{{ netbox_lxcs }}"
+      no_log: true
+
+    - name: Create and assign LXC IP addresses
+      netbox.netbox.netbox_ip_address:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          address: "{{ item.address }}"
+          status: active
+          dns_name: "{{ item.name }}"
+          assigned_object:
+            virtual_machine: "{{ item.name }}"
+            name: eth0
+          tags: "{{ item.tags | default(['Ansible Managed']) }}"
+          description: Primary address for {{ item.name }}
+        state: present
+      loop: "{{ netbox_lxcs }}"
+      no_log: true
+
+    - name: Set each LXC primary IPv4 address
+      netbox.netbox.netbox_virtual_machine:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: "{{ item.name }}"
+          cluster: Homelab Proxmox
+          primary_ip4: "{{ item.address }}"
+        state: present
+      loop: "{{ netbox_lxcs }}"
+      no_log: true
+
+    - name: Report the import result
+      ansible.builtin.debug:
+        msg:
+          - NetBox LXC import completed successfully.
+          - "Imported records: {{ netbox_lxcs | length }}"
+          - Host details remain stored privately in Semaphore.

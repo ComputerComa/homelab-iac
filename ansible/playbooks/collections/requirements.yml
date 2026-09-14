@@ -5,3 +5,6 @@ collections:
 
   - name: netbox.netbox
     version: "3.23.0"
+
+  - name: ansible.utils
+    version: 6.0.0
