@@ -1,0 +1,103 @@
+---
+- name: Verify the target is Debian-based
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+    fail_msg: >-
+      The baseline role currently supports only Debian-based systems.
+      Detected {{ ansible_distribution }} {{ ansible_distribution_version }}.
+
+- name: Set the system timezone
+  community.general.timezone:
+    name: "{{ baseline_timezone }}"
+
+- name: Refresh the APT cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+- name: Install baseline administration packages
+  ansible.builtin.apt:
+    name: "{{ baseline_packages }}"
+    state: present
+    lock_timeout: 120
+
+- name: Generate the configured locale
+  community.general.locale_gen:
+    name: "{{ baseline_locale }}"
+    state: present
+
+- name: Configure the default system locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      LANG={{ baseline_locale }}
+      LANGUAGE={{ baseline_locale }}
+      LC_ALL={{ baseline_locale }}
+
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+    lock_timeout: 120
+  when: baseline_upgrade_packages | bool
+
+- name: Check for the root authorized_keys file
+  ansible.builtin.stat:
+    path: /root/.ssh/authorized_keys
+  register: baseline_authorized_keys
+
+- name: Refuse to disable passwords without an SSH key
+  ansible.builtin.assert:
+    that:
+      - baseline_authorized_keys.stat.exists
+      - baseline_authorized_keys.stat.size | int > 0
+    fail_msg: >-
+      /root/.ssh/authorized_keys is missing or empty. Password authentication
+      will not be disabled because doing so could lock this system out.
+
+- name: Create the SSH configuration directory
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure SSH for automation
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/90-homelab-automation.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PubkeyAuthentication yes
+      PermitRootLogin prohibit-password
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Restart SSH
+
+- name: Enable and start SSH
+  ansible.builtin.service:
+    name: ssh
+    enabled: true
+    state: started
+
+- name: Check whether a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: baseline_reboot_required
+
+- name: Report baseline result
+  ansible.builtin.debug:
+    msg:
+      - "Baseline configuration completed on {{ inventory_hostname }}."
+      - "Timezone: {{ baseline_timezone }}"
+      - "Locale: {{ baseline_locale }}"
+      - "Reboot required: {{ baseline_reboot_required.stat.exists }}"

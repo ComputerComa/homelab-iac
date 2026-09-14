@@ -1,0 +1,8 @@
+---
+- name: Apply the standard homelab base feature set
+  hosts: "{{ baseline_hosts | default('managed_lxcs') }}"
+  gather_facts: true
+  serial: 1
+
+  roles:
+    - base
