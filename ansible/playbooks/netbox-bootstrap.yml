@@ -1,0 +1,164 @@
+---
+- name: Create the foundational NetBox data model
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    netbox_url: "{{ lookup('env', 'NETBOX_API') }}"
+    netbox_token: "{{ lookup('env', 'NETBOX_BOOTSTRAP_TOKEN') }}"
+
+  pre_tasks:
+    - name: Verify NetBox API variables are available
+      ansible.builtin.assert:
+        that:
+          - netbox_url | length > 0
+          - netbox_token | length > 0
+        fail_msg: NETBOX_API or NETBOX_BOOTSTRAP_TOKEN is missing.
+      no_log: true
+
+    - name: Verify the NetBox API responds
+      ansible.builtin.uri:
+        url: "{{ netbox_url }}/api/status/"
+        method: GET
+        headers:
+          Authorization: "Token {{ netbox_token }}"
+          Accept: application/json
+        status_code: 200
+      no_log: true
+
+  tasks:
+    - name: Create the homelab site
+      netbox.netbox.netbox_site:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: Home
+          slug: home
+          status: active
+          time_zone: America/Chicago
+          description: Primary homelab site
+        state: present
+      no_log: true
+
+    - name: Create the Proxmox cluster type
+      netbox.netbox.netbox_cluster_type:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: Proxmox VE
+          slug: proxmox-ve
+          description: Proxmox Virtual Environment
+        state: present
+      no_log: true
+
+    - name: Create the homelab Proxmox cluster
+      netbox.netbox.netbox_cluster:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: Homelab Proxmox
+          cluster_type: Proxmox VE
+          status: active
+          scope_type: dcim.site
+          scope: Home
+          description: Primary Proxmox cluster
+        state: present
+      no_log: true
+
+    - name: Create infrastructure tags
+      netbox.netbox.netbox_tag:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: "{{ item.name }}"
+          slug: "{{ item.slug }}"
+          color: "{{ item.color }}"
+          description: "{{ item.description }}"
+        state: present
+      loop:
+        - name: Ansible Managed
+          slug: ansible-managed
+          color: 00ff00
+          description: Configuration managed by Ansible
+        - name: OpenTofu Managed
+          slug: opentofu-managed
+          color: 0080ff
+          description: Infrastructure managed by OpenTofu
+        - name: Bootstrap
+          slug: bootstrap
+          color: ff9800
+          description: Required to bootstrap automation
+      no_log: true
+
+    - name: Create IPAM roles
+      netbox.netbox.netbox_ipam_role:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          name: "{{ item.name }}"
+          slug: "{{ item.slug }}"
+        state: present
+      loop:
+        - name: Homelab Network
+          slug: homelab-network
+        - name: DHCP
+          slug: dhcp
+        - name: Virtual Services
+          slug: virtual-services
+        - name: DNS Infrastructure
+          slug: dns-infrastructure
+      no_log: true
+
+    - name: Create the parent homelab prefix
+      netbox.netbox.netbox_prefix:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          prefix: 10.0.0.0/16
+          status: active
+          prefix_role: Homelab Network
+          scope_type: dcim.site
+          scope: Home
+          description: Complete homelab network
+        state: present
+      no_log: true
+
+    - name: Create known child prefixes
+      netbox.netbox.netbox_prefix:
+        netbox_url: "{{ netbox_url }}"
+        netbox_token: "{{ netbox_token }}"
+        validate_certs: false
+        data:
+          prefix: "{{ item.prefix }}"
+          status: active
+          prefix_role: "{{ item.role }}"
+          scope_type: dcim.site
+          scope: Home
+          description: "{{ item.description }}"
+        state: present
+      loop:
+        - prefix: 10.0.4.0/24
+          role: DHCP
+          description: DHCP-assigned systems
+        - prefix: 10.0.150.0/24
+          role: Virtual Services
+          description: Static Proxmox virtual services
+        - prefix: 10.0.200.0/24
+          role: DNS Infrastructure
+          description: DNS infrastructure addresses
+      no_log: true
+
+    - name: Report successful NetBox bootstrap
+      ansible.builtin.debug:
+        msg:
+          - NetBox base model created successfully.
+          - Site: Home
+          - Cluster: Homelab Proxmox
+          - Parent prefix: 10.0.0.0/16
