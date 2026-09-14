@@ -47,7 +47,7 @@ module "netbox" {
   prefix_length  = var.prefix_length
   ssh_public_key = var.ssh_public_key
 
-  enable_nesting = false
+ 
 
   tags = [
     "managed-by-tofu",
