@@ -22,3 +22,15 @@ output "netbox_hostname" {
 output "netbox_ip" {
   value = module.netbox.ip_address
 }
+
+output "rundeck_hostname" {
+  value = module.rundeck.hostname
+}
+
+output "rundeck_ip" {
+  value = module.rundeck.ip_address
+}
+
+output "rundeck_vmid" {
+  value = module.rundeck.vm_id
+}

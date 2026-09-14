@@ -56,3 +56,28 @@ module "netbox" {
     "dcim"
   ]
 }
+
+module "rundeck" {
+  source = "./modules/proxmox-lxc"
+
+  node_name            = var.proxmox_node
+  vm_id                = 140
+  hostname             = "rundeck"
+  description          = "Rundeck automation and job orchestration server"
+  tags                 = ["managed-by-tofu", "rundeck", "automation"]
+
+  cores                 = 2
+  memory_mb             = 4096
+  swap_mb               = 512
+  disk_size_gb          = 20
+
+  network_prefix        = "10.0.150"
+  prefix_length         = 16
+  gateway               = "10.0.1.1"
+  dns_servers           = var.dns_servers
+
+  ssh_public_key        = var.ssh_public_key
+  container_template    = var.container_template
+
+  enable_nesting        = false
+}

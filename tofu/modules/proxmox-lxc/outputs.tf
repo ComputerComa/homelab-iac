@@ -9,3 +9,4 @@ output "hostname" {
 output "ip_address" {
   value = "${var.subnet_prefix}.${var.vmid}"
 }
+
