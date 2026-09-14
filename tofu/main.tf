@@ -60,24 +60,29 @@ module "netbox" {
 module "rundeck" {
   source = "./modules/proxmox-lxc"
 
-  node_name   = var.proxmox_node
-  vm_id       = 140
-  hostname    = "rundeck"
-  description = "Rundeck automation and job orchestration server"
-  tags        = ["managed-by-tofu", "rundeck", "automation"]
+  node_name        = var.proxmox_node
+  datastore_id     = var.datastore_id
+  template_file_id = var.template_file_id
 
-  cores        = 2
-  memory_mb    = 4096
-  swap_mb      = 512
-  disk_size_gb = 20
+  vmid     = 140
+  hostname = "rundeck"
 
-  network_prefix = "10.0.150"
-  prefix_length  = 16
-  gateway        = "10.0.1.1"
-  dns_servers    = var.dns_servers
+  cores     = 2
+  memory_mb = 4096
+  swap_mb   = 512
+  disk_gb   = 20
 
-  ssh_public_key     = var.ssh_public_key
-  container_template = var.container_template
+  bridge         = var.bridge
+  gateway        = var.gateway
+  subnet_prefix  = var.subnet_prefix
+  prefix_length  = var.prefix_length
+  ssh_public_key = var.ssh_public_key
 
   enable_nesting = false
+
+  tags = [
+    "managed-by-tofu",
+    "rundeck",
+    "automation"
+  ]
 }

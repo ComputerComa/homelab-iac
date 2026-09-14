@@ -32,5 +32,5 @@ output "rundeck_ip" {
 }
 
 output "rundeck_vmid" {
-  value = module.rundeck.vm_id
+  value = module.rundeck.vmid
 }
