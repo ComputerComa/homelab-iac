@@ -1,0 +1,31 @@
+---
+- name: Configure Semaphore/OpenTofu test container
+  hosts: semaphore_lab
+  become: true
+
+  tasks:
+    - name: Refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Enable and start nginx
+      ansible.builtin.service:
+        name: nginx
+        enabled: true
+        state: started
+
+    - name: Verify nginx responds locally
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        status_code: 200
+      register: nginx_check
+
+    - name: Show verification result
+      ansible.builtin.debug:
+        msg: "nginx returned HTTP {{ nginx_check.status }} on {{ inventory_hostname }}"

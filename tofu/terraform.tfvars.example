@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and change these values.
+# terraform.tfvars is intentionally ignored by Git.
+
+proxmox_endpoint = "https://pve.example.internal:8006/"
+proxmox_node     = "pve1"
+
+datastore_id = "local-lvm"
+
+# Check the exact template filename on your Proxmox host.
+template_file_id = "local:vztmpl/debian-13-standard_13.1-1_amd64.tar.zst"
+
+bridge        = "vmbr0"
+gateway       = "10.0.150.1"
+subnet_prefix = "10.0.150"
+
+# Public key only. Do not put a private key here.
+ssh_public_key = "ssh-ed25519 AAAA...replace-me"

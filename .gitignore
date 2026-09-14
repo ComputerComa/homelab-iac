@@ -1,0 +1,33 @@
+# OpenTofu / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep the dependency lock file in Git
+!.terraform.lock.hcl
+
+# Secrets / credentials
+.env
+.env.*
+*.pem
+*.key
+vault-password*
+secrets.yml
+secrets.yaml
+
+# Ansible
+*.retry
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
