@@ -1,5 +1,6 @@
 locals {
   ip_address = "${var.subnet_prefix}.${var.vmid}/${var.prefix_length}"
+  ip_tag     = "${split(".", var.subnet_prefix)[2]}.${var.vmid}"
 }
 
 resource "proxmox_virtual_environment_container" "this" {
@@ -12,7 +13,7 @@ resource "proxmox_virtual_environment_container" "this" {
   start_on_boot = var.start_on_boot
   unprivileged  = var.unprivileged
 
-  tags = var.tags
+  tags = distinct(concat([local.ip_tag], var.tags))
 
   cpu {
     cores = var.cores
